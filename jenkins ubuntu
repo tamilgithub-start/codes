@@ -1,0 +1,38 @@
+jenkins install step by step: working(ubuntu 16.04 lts)
+-------------------------------------------------------
+https://www.jenkins.io/doc/book/installing/linux/
+from jekins website
+-------------------------------------------------
+wget -q -O - https://pkg.jenkins.io/debian-stable/jenkins.io.key | sudo apt-key add -
+
+sudo sh -c 'echo deb https://pkg.jenkins.io/debian-stable binary/ > /etc/apt/sources.list.d/jenkins.list'
+
+sudo apt-get update
+
+sudo apt-get install jenkins
+
+
+Verify:-
+(i) ps -ef | grep jenkins
+    
+change the port number:
+#nano /etc/default/jenkins
+
+(ii) Jenkins will be launched as a daemon up on start - Check under /etc/init.d/jenkins
+(iii) /etc/default/jenkins will capture configuration parameters for the launch like e.g JENKINS_HOME. 
+
+
+----------------------------------------------------------------------------------------------------------
+
+
+----------------------------------------------------------------------------------------------------------
+uninstall:
+----------------
+sudo service jenkins stop
+sudo apt-get remove jenkins
+sudo apt-get remove --auto-remove jenkins
+ping www.google.com
+sudo apt-get remove --purge jenkins
+--------------------------------------------------
+
+
