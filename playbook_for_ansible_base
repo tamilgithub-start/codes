@@ -1,0 +1,251 @@
+
+multiple task ---playbook-- .yaml
+
+https://youtu.be/1uFVr15xDGg
+
+YAML Syntax:
+https://docs.ansible.com/ansible/latest/reference_appendices/YAMLSyntax.html
+
+
+---------------------------------------------------------------------------------------------
+-      : denotes the beginning of a YAML file
+hosts  : host tells Ansible to run the tasks on the host
+become : true makes all your tasks run as sudo
+- name : is basically a comment, describing what the task does(comment line)
+yum    : specifies the module we want to use(we have many modules in Ansible)
+name   : is an argument to the yum module, that specifies the name of the package to install
+
+----------------------------------------------------------------------------------------------
+
+
+
+use case:1
+==========
+1. Install apache
+2. apache start - service httpd start
+3. master -- > index.html --> /var/www/html/index.html (dest-copy)
+
+In visual studio code
+-------------------------------------------------------------------
+- hosts: all
+  remote_user: ec2-user
+  become: yes
+  tasks:
+       - name: i am going to Install apache 
+         yum:
+           name: httpd
+           state: present
+
+       - name: starting my apache
+         service:
+           name: httpd
+           state: started
+
+       - name: copy index.html
+         copy:
+           src: ./index.html
+           dest: /var/www/html/index.html
+           mode: '0777'
+
+
+---------------------------------------------------------------------
+
+
+For syntax error check:
+
+syntax:(if pip)
+ansible-playbook -i <inventory file-name> <playbook-name> --syntax-check
+
+
+#ansible-playbook -i slaves.txt first.yaml --syntax-check
+
+Run command:
+
+syntax:(if pip)
+ansible-playbook -i <inventory file-name> <playbook file-name>
+
+#ansible-playbook -i slaves.txt first.yaml
+
+---------------------------------------------------------------------------
+
+usecase 2: Loop
+===============
+https://docs.ansible.com/ansible/latest/user_guide/playbooks_loops.html
+
+Install multiple packages in playbook
+1.mysql
+2.php
+3.git
+---------------------------------------------------
+- hosts: all
+  remote_user: ec2-user
+  become: yes
+  tasks:
+    - name: Install packaging one by one
+      yum:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - mysql
+        - php
+        - unzip
+        - wget
+        - xyz
+
+   
+
+#ansible-playbook -i slaves.txt loop.yaml
+
+----------------------------------------------------
+
+usecase 3: ec2 creation
+======================
+----------------------------------------------------
+- hosts: localhost
+  remote_user: ec2-user
+  become: yes
+  tasks:
+    - name: creating new ec2 machine 
+      amazon.aws.ec2:
+          key_name: mumbai-08092021
+          instance_type: t2.micro
+          image: ami-041d6256ed0f2061c
+          region: ap-south-1
+         # wait: yes
+         # group: webserver
+          count: 1
+          vpc_subnet_id: subnet-979669fc
+          assign_public_ip: yes
+
+
+#ansible-playbook -i slaves.txt ec2-creation.yaml
+
+#sudo pip install boto
+
+#have to attach role for ec2 as fullacess in master machine.
+
+-----------------------------------------------------
+
+use case:4
+
+Install jenkins: 
+
+https://pkg.jenkins.io/redhat-stable/
+----------------------------------------------------------------------
+- hosts: mygroup
+  remote_user: ec2-user
+  become: yes
+  tasks:
+       - name: install jenkins
+         yum_repository:
+            name: jenkins
+            description: jenkins yum repo
+            baseurl: http://pkg.jenkins.io/redhat-stable
+            gpgkey: http://pkg.jenkins.io/redhat-stable/jenkins.io.key
+         
+       - name: inatall java and jenkins
+         yum:
+            name: "{{ item }}"
+            state: present
+         loop:
+             - java
+             - jenkins
+       
+       - name: start jenkins
+         service:
+            name: jenkins
+            state: started
+
+#ansible-playbook -i slaves.txt jenkins.yaml
+
+------------------------------------------------------------------------
+use case 5: changing the jenkins port number
+adhoc command: for to know the port number
+ansible greens -i slave.txt -a "grep -i JENKINS_PORT /etc/sysconfig/jenkins" -b
+
+-------------------------------------------------------------------------------
+- name: going to change jenkins default port number
+  lineinfile:
+    path: /etc/sysconfig/jenkins
+    regexp: '^JENKINS_PORT='
+    line: "JENKINS_PORT={{PORTS}}"
+
+--------------------------------------------------------------------------------
+
+- hosts: greens
+  remote_user: ec2-user
+  become: yes
+  vars:
+      ports: 9090
+  tasks:
+       - name: install jenkins
+         yum_repository:
+            name: jenkins
+            description: jenkins yum repo
+            baseurl: http://pkg.jenkins.io/redhat-stable
+            gpgkey: http://pkg.jenkins.io/redhat-stable/jenkins.io.key
+         
+       - name: inatall java and jenkins
+         yum:
+            name: "{{ item }}"
+            state: present
+         loop:
+             - java
+             - jenkins
+
+       - name: going to change jenkins default port number
+         lineinfile:
+            path: /etc/sysconfig/jenkins
+            regexp: '^JENKINS_PORT='
+            line: "JENKINS_PORT={{ PORTS }}"      
+       
+       - name: start jenkins
+         service:
+            name: jenkins
+            state: started
+-------------------------------------------------------------------------------------------
+use case 6: with handler
+
+#ansible-playbook -i slave.txt handler.yaml -e "ports=9091"
+
+
+- hosts: all
+  remote_user: ec2-user
+  become: yes
+  vars:
+      ports: 9090
+  tasks:
+       - name: install jenkins
+         yum_repository:
+            name: jenkins
+            description: jenkins yum repo
+            baseurl: http://pkg.jenkins.io/redhat-stable
+            gpgkey: http://pkg.jenkins.io/redhat-stable/jenkins.io.key
+         
+       - name: inatall java and jenkins
+         yum:
+            name: "{{ item }}"
+            state: present
+         loop:
+             - java
+             - jenkins
+
+       - name: going to change jenkins default port number
+         lineinfile:
+            path: /etc/sysconfig/jenkins
+            regexp: '^JENKINS_PORT='
+            line: "JENKINS_PORT={{PORTS}}" 
+         notify:
+            - restart jenkins     
+       
+       - name: start jenkins
+         service:
+            name: jenkins
+            state: started
+            
+   handlers:
+       - name: restart jenkins
+         service:
+            name: jenkins
+            state: restarted
+
