@@ -1,0 +1,153 @@
+
++-
+Deployment:
+
+pre-request:
+
+1.Tomcat
+2.Application (Ex:sample.war)
+
+deploy
+
+-------------------------------------------------------
+
+- hosts: [group name] or all
+  remote_user: ec2-user
+  become: yes
+  tasks:
+    - name: updating yum package 
+         yum:
+           name: "*"
+           state: latest
+
+    - name: Install Java 
+         yum:
+           name: java-1.8.0-openjdk
+           state: present
+
+    - name: Download tomcat from offical website(https://mirrors.estointernet.in/apache/tomcat/tomcat-9/v9.0.54/bin/apache-tomcat-9.0.54.zip)
+      get_url:
+        url: https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.58/bin/apache-tomcat-9.0.58.zip
+        dest: /usr/local
+        mode: "0777"
+     
+    - name: unzip
+      unarchive:
+        src: /usr/local/apache-tomcat-9.0.54.zip
+        dest: /usr/local/bin
+        remote_src: yes
+        mode: "0777"
+
+    - name: start tomcat
+      shell: nohup /usr/local/bin/apache-tomcat-9.0.54/bin/startup.sh &
+   
+-----
+
+copy the server.xml file from tomcat-apache conf folder in slave machine
+and paste into /tmp folder
+[ec2-user@ip-172-31-6-142 conf]$ cp server.xml /tmp/
+
+
+[ec2-user@ip-172-31-6-142 tmp]$ ls
+hsperfdata_ec2-user  hsperfdata_root  server.xml  systemd-private-9223ae7c1fb24a1a99b7d539ca937be7-chronyd.service-I2ZXYN
+
+[ec2-user@ip-172-31-6-142 tmp]$chmod 777 server.xml
+
+
+#ps -ef | grep java
+
+[ec2-user@ip-172-31-6-142 tmp]$ sudo kill -9 10178
+
+exit from slave machine
+
+[ec2-user@ip-172-31-6-142 tmp]$exit
+
+copy the server.xml file from slave to master
+[ec2-user@ip-172-31-12-210 ~]$ scp ec2-user@172.31.6.142:/tmp/server.xml .
+
+
+
+
+see environment variable:for port change.
+
+Connector port="{{tomcat_port}}"
+
+create template: it means convert into jinja format (.j2)
+
+[ec2-user@ip-172-31-12-210 ~]$ mv server.xml server.xml.j2
+
+-----
+- name: going to change port number
+  template:
+    src: ./server.xml.j2
+    dest: /usr/local/bin/apache-tomcat-9.0.54/conf/server.xml
+    mode: "0777"
+
+- name: depolyment
+  copy:
+    src: ./sample.war
+    dest: /usr/local/bin/apache-tomcat-9.0.54/webapps
+
+
+
+---------------------------------------------------------------------------------
+
+Roles:
+$ ansible-galaxy init apache
+
+
+#sudo yum install tree
+-----------
+
+apache:
+- hosts: all
+  remote_user: ec2-user
+  become: yes
+  roles:
+    - apache
+
+task
+
+ - name: Install apache
+       yum:
+           name: httpd
+           state: present
+
+     - name: start apache
+       service:
+           name: httpd
+           state: started
+
+     - name: copy index.html
+       copy:
+           src: ./index.html
+           dest: /var/www/html/index.html
+           mode: '0777'
+
+
+files
+index.html
+
+
+
+--------------------------------------------------------------------------------
+ansible vault:
+
+Ansible Vault encrypts variables and files so you can protect sensitive content
+such as passwords or keys rather than leaving it visible as plaintext in playbooks or roles
+--------------------------------------------------- 
+To create encrypt yaml file:
+#ansible-vault encrypt <filename.yaml>
+
+To run encrypt yaml file:
+#ansible-playbook -i <inventoryfile> <encrypted file name> --ask-vault-pass
+
+To view the encrypted yaml file:
+#ansible-vault view <encrypted file name>
+
+To edit the encrypted yaml file:
+#ansible-vault edit <encrypted file name> 
+
+
+
+
