@@ -5,3 +5,6 @@ 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
 git config --global merge.tool vimdiff
 git config --global merge.conflictstyle diff3
 git config --global mergetool.prompt false
+
+access token 
+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
